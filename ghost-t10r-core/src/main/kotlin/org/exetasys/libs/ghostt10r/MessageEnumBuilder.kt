@@ -44,15 +44,19 @@ class MessageEnumBuilder(
 
         println("makeEnumContent: ${specs.keys}")
 
-        specs.entries.forEach { (key, spec) ->
-            val formatMethodBuilder = makeFormatMethod(key, spec)
-            val parseMethodBuilder = makeParseMethod(key, spec)
-            builder.addEnumConstant(key, TypeSpec
-                .anonymousClassBuilder("\$S", key)
-                .addMethod(formatMethodBuilder.build())
-                .addMethod(parseMethodBuilder.build())
-                .build())
-        }
+        specs.entries
+            .filter { it.key.startsWith(keyPrefix) }
+            .forEach { (key, spec) ->
+                val formatMethodBuilder = makeFormatMethod(key, spec)
+                val parseMethodBuilder = makeParseMethod(key, spec)
+                builder.addEnumConstant(
+                    key.replaceFirst(keyPrefix, ""),
+                    TypeSpec
+                        .anonymousClassBuilder("\$S", key)
+                        .addMethod(formatMethodBuilder.build())
+                        .addMethod(parseMethodBuilder.build())
+                        .build())
+            }
 
         val bundlesTypeName = ParameterizedTypeName.get(
                 Map::class.java,
