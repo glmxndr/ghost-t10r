@@ -15,6 +15,7 @@ class MessageEnumBuilderTest {
                 "org.exetasys.libs.ghost10r.messages",
                 "test-ghost-t10r",
                 Locale("fr", "FR"),
+                "",
                 Arrays.asList(
                     Locale("fr", "FR"),
                     Locale("en", "UK"))
