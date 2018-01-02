@@ -6,7 +6,7 @@ import java.util.*
 
 class MsgSpecs(
     val mainLocale: Locale,
-    val locales: List<Locale>
+    val locales: Set<Locale>
 ) : HashMap<String, MsgSpec>() {
 
     fun add(key: String, loc: Locale, format: String): MsgSpecs {

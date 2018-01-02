@@ -5,10 +5,72 @@
     <parent>
         <artifactId>ghost-t10r</artifactId>
         <groupId>org.exetasys.libs</groupId>
-        <version>1.0-SNAPSHOT</version>
+        <version>0.0.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>ghost-t10r-sample</artifactId>
+
+
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>target/generated-sources/ghost</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.exetasys.libs</groupId>
+                <artifactId>ghost-t10r-maven-plugin</artifactId>
+                <version>${project.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>enum-gen</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <destDir>target/generated-sources/ghost</destDir>
+                    <enumName>SampleMessage</enumName>
+
+                    <resources>
+                        <resource>src/main/resources</resource>
+                    </resources>
+                    <bundleName>sample</bundleName>
+                    <enumPackage>org.exetasys.libs.ghostt10r.msg</enumPackage>
+                    <keyPrefix>sample.prefix1</keyPrefix>
+
+                    <locales>
+                        <locale>fr-FR</locale>
+                        <locale>en-UK</locale>
+                    </locales>
+                    <mainLocale>fr-FR</mainLocale>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
 </project>

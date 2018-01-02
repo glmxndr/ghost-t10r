@@ -4,16 +4,20 @@
     <parent>
         <artifactId>ghost-t10r</artifactId>
         <groupId>org.exetasys.libs</groupId>
-        <version>1.0-SNAPSHOT</version>
+        <version>0.0.1</version>
     </parent>
 
     <artifactId>ghost-t10r-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
 
-    <name>ghost-t10r-maven-plugin Maven Mojo</name>
-    <url>http://maven.apache.org</url>
+    <name>Ghost T10r Maven Plugin</name>
 
     <dependencies>
+        <dependency>
+            <groupId>org.exetasys.libs</groupId>
+            <artifactId>ghost-t10r-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
@@ -26,10 +30,22 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>3.8.1</version>
-            <scope>test</scope>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>3.1.1</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <version>3.3</version>
+                <configuration>
+                    <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

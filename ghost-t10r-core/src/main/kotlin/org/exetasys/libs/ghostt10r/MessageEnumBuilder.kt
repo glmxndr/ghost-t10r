@@ -6,30 +6,38 @@ import org.exetasys.libs.ghostt10r.model.MsgSpecs
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
+import java.net.URLClassLoader
 import java.text.MessageFormat
+import java.text.ParseException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Function
 import javax.lang.model.element.Modifier
 
 class MessageEnumBuilder(
+    val rscDirs : List<File>,
+    val bundleName : String,
+    val keyPrefix:  String,
+    val mainLocale : Locale,
+    val locales : Set<Locale>,
     val destDir : File,
     val enumName : String,
-    val enumPackage : String,
-    val bundleName : String,
-    val mainLocale : Locale,
-    val keyPrefix:  String,
-    val locales : List<Locale>
+    val enumPackage : String
 ) {
 
     companion object {
         val LOG : Logger = LoggerFactory.getLogger(MessageEnumBuilder::class.java.name)
     }
 
-    val DOLLAR = "\$"
+    private val keyPattern = Regex("[A-Z][A-Z1-9_]+")
+    private val classLoader = URLClassLoader(rscDirs
+        .map(File::toURI)
+        .map(URI::toURL)
+        .toTypedArray())
 
     fun loadSpecsForLocale(specs: MsgSpecs, locale: Locale): MsgSpecs {
-        val bundle: ResourceBundle = ResourceBundle.getBundle(bundleName, locale)
+        val bundle: ResourceBundle = ResourceBundle.getBundle(bundleName, locale, classLoader)
         return bundle.keys.toList().fold(specs) {
             specs, key -> specs.add(key, locale, bundle.getString(key))
         }
@@ -38,35 +46,77 @@ class MessageEnumBuilder(
     fun loadSpecs(): MsgSpecs =
             locales.fold(MsgSpecs(mainLocale, locales), this::loadSpecsForLocale)
 
+    fun makeEnumFile(specs: MsgSpecs): JavaFile {
+        val type = makeEnumContent(specs)
+        return JavaFile.builder(enumPackage, type)
+            .skipJavaLangImports(true)
+            .build()
+    }
+
+    fun writeEnumFile(specs: MsgSpecs) {
+        makeEnumFile(specs).writeTo(destDir)
+    }
+
+    fun camelCase(key: String): String = key
+        .split("_")
+        .map { it.toLowerCase() }
+        .map { it.capitalize() }
+        .fold("") { a, b -> a + b }
+
     fun makeEnumContent(specs: MsgSpecs): TypeSpec {
-        val builder: TypeSpec.Builder = TypeSpec.enumBuilder(enumName)
+
+        val builder: TypeSpec.Builder = TypeSpec.classBuilder(enumName)
             .addModifiers(Modifier.PUBLIC)
 
         println("makeEnumContent: ${specs.keys}")
 
         specs.entries
             .filter { it.key.startsWith(keyPrefix) }
+            .filter { it.key.replaceFirst(keyPrefix, "").matches(keyPattern) }
             .forEach { (key, spec) ->
                 val formatMethodBuilder = makeFormatMethod(key, spec)
                 val parseMethodBuilder = makeParseMethod(key, spec)
-                builder.addEnumConstant(
-                    key.replaceFirst(keyPrefix, ""),
+                val keyName = key.replaceFirst(keyPrefix, "")
+                val keyTypeName = camelCase(keyName) + "Type"
+
+                val paramsStr = paramsStrings(spec)
+
+                builder.addType(
                     TypeSpec
-                        .anonymousClassBuilder("\$S", key)
+                        .classBuilder(keyTypeName)
+                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                        .superclass(ClassName.get(enumPackage, enumName))
+                        .addField(FieldSpec.builder(String::class.java, "key")
+                            .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+                            .initializer("\$S", key)
+                            .build())
+                        .addField(FieldSpec.builder(ParameterizedTypeName.get(
+                                    List::class.java,
+                                    String::class.javaObjectType),
+                                "params")
+                            .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+                            .initializer("\$T.asList(\$L)", Arrays::class.java, paramsStr)
+                            .build())
                         .addMethod(formatMethodBuilder.build())
                         .addMethod(parseMethodBuilder.build())
                         .build())
+
+                builder.addField(FieldSpec
+                    .builder(ClassName.get("", keyTypeName), keyName)
+                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    .initializer("new \$L()", keyTypeName)
+                    .build())
             }
 
         val bundlesTypeName = ParameterizedTypeName.get(
                 Map::class.java,
                 Locale::class.java,
                 ResourceBundle::class.java)
-        val bundlesField = FieldSpec
-                .builder(bundlesTypeName,"BUNDLES", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+        builder.addField(FieldSpec
+                .builder(bundlesTypeName,"BUNDLES")
+                .addModifiers(Modifier.PROTECTED, Modifier.STATIC, Modifier.FINAL)
                 .initializer("new \$T()", HashMap::class.java)
-                .build()
-        builder.addField(bundlesField)
+                .build())
 
         val populateBundlesBlock = CodeBlock.builder()
         //, $T.getBundle($S, new $T($S, $S))
@@ -76,11 +126,6 @@ class MessageEnumBuilder(
                     bundleName, Locale::class.java, loc.language, loc.country, loc.variant)
         }
         builder.addStaticBlock(populateBundlesBlock.build())
-
-        builder.addMethod(MethodSpec.constructorBuilder()
-            .addParameter(String::class.java, "key")
-            .addStatement("this.\$N = \$N", "key", "key")
-            .build())
 
         builder.addMethod(MethodSpec.methodBuilder("loadBundleWithLocale")
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -99,16 +144,19 @@ class MessageEnumBuilder(
             .build())
 
         builder.addMethod(MethodSpec.methodBuilder("replaceParamsByNumbers")
-            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .returns(String::class.java)
             .addParameter(String::class.java, "msg", Modifier.FINAL)
             .addParameter(ParameterizedTypeName.get(List::class.java, String::class.java), "params", Modifier.FINAL)
-            .addStatement("String msg = BUNDLES.get(locale).getString(this.key)")
+            .addStatement("String result = msg")
+            .addStatement("int max = params.size()")
             .beginControlFlow("for (int i = 0; i < max; i++)")
-            .addStatement("msg = replaceParamByNumber(msg, params.get(i), i)")
+            .addStatement("result = replaceParamByNumber(msg, params.get(i), i)")
             .endControlFlow()
-            .addStatement("return msg")
+            .addStatement("return result")
             .build())
+
+        builder.addMethod(makeBaseParseMethod().build())
 
         return builder.build()
     }
@@ -125,11 +173,10 @@ class MessageEnumBuilder(
         val paramsCount = spec.mainFormat()?.params?.size ?: 0
 
         val params = spec.mainFormat()?.params?.fold("") { acc, param -> "$acc, $param" } ?: ""
-        val paramsStr = paramsStrings(spec)
 
         val formatBlock: CodeBlock.Builder = CodeBlock.builder()
-            .beginControlFlow("return locale ->")
-            .addStatement("List<String> params = \$T.asList(\$L)", Arrays::class.java, paramsStr)
+            .add("return locale -> {\n")
+            .indent()
             .addStatement("String msg = BUNDLES.get(locale).getString(this.key)")
             .addStatement("msg = replaceParamsByNumbers(msg, params)")
 
@@ -139,9 +186,40 @@ class MessageEnumBuilder(
         else {
             formatBlock.addStatement("return \$T.format(msg$params)", MessageFormat::class.java)
         }
-        formatBlock.endControlFlow()
+
+        formatBlock
+            .unindent()
+            .add("};\n")
 
         formatMethodBuilder.addCode(formatBlock.build())
+        return formatMethodBuilder
+    }
+
+    private fun makeBaseParseMethod(): MethodSpec.Builder {
+        val mapType : ParameterizedTypeName = ParameterizedTypeName
+                .get(Map::class.java, String::class.java, Object::class.java)
+        val formatMethodBuilder = MethodSpec.methodBuilder("parse")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+            .returns(mapType)
+            .addException(ParseException::class.java)
+            .addParameter(String::class.java, "key")
+            .addParameter(ParameterizedTypeName.get(List::class.java, String::class.java), "params")
+            .addParameter(Locale::class.java, "locale")
+            .addParameter(String::class.java, "formattedMessage")
+
+        val formatBlock: CodeBlock.Builder = CodeBlock.builder()
+                .addStatement("String msg = BUNDLES.get(locale).getString(key)")
+                .addStatement("msg = replaceParamsByNumbers(msg, params)")
+                .addStatement("MessageFormat format = new MessageFormat(msg)")
+                .addStatement("Object[] objs = format.parse(formattedMessage)")
+                .addStatement("Map<String, Object> result = new HashMap<>()")
+                .beginControlFlow("for (int i = 0; i < params.size(); i++)")
+                .addStatement("result.put(params.get(i), objs[i])")
+                .endControlFlow()
+                .addStatement("return result")
+
+        formatMethodBuilder.addCode(formatBlock.build())
+
         return formatMethodBuilder
     }
 
@@ -149,31 +227,13 @@ class MessageEnumBuilder(
     private fun makeParseMethod(key: String, spec: MsgSpec): MethodSpec.Builder {
         val mapType : ParameterizedTypeName = ParameterizedTypeName
             .get(Map::class.java, String::class.java, Object::class.java)
-        val formatMethodBuilder = MethodSpec.methodBuilder("parse")
+        return MethodSpec.methodBuilder("parse")
             .addModifiers(Modifier.PUBLIC)
             .returns(mapType)
+            .addException(ParseException::class.java)
             .addParameter(Locale::class.java, "locale")
             .addParameter(String::class.java, "formattedMessage")
-
-        val params = paramsStrings(spec)
-        val counter = AtomicInteger()
-
-        val formatBlock: CodeBlock.Builder = CodeBlock.builder()
-            .addStatement("List<String> params = \$T.asList(\$L)", Arrays::class.java, params)
-            .addStatement("String msg = BUNDLES.get(locale).getString(this.key)")
-            .addStatement("msg = replaceParamsByNumbers(msg, params)")
-            .addStatement("MessageFormat format = new MessageFormat(msg)")
-            .addStatement("Object[] objs = format.parse(formattedMessage)")
-            .addStatement("Map<String, Object> result = new HashMap<>()")
-        spec.mainFormat()?.params?.forEach { param ->
-            formatBlock.addStatement("result.put(\$S, objs[\$L])", param, counter.getAndIncrement())
-        }
-        formatBlock
-            .addStatement("return result")
-
-        formatMethodBuilder.addCode(formatBlock.build())
-
-        return formatMethodBuilder
+            .addStatement("return parse(key, params, locale, formattedMessage)")
     }
 
     private fun paramsStrings(spec: MsgSpec): String {

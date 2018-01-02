@@ -7,7 +7,7 @@ import java.util.stream.Stream
 class MsgSpec (
     val key: String,
     val mainLocale: Locale,
-    val locales: List<Locale>
+    val locales: Set<Locale>
 ) : HashMap<Locale, String>() {
     val formats: Map<Locale, String> = HashMap()
 
