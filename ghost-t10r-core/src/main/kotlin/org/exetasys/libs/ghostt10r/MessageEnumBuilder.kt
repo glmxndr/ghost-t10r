@@ -11,7 +11,6 @@ import java.net.URLClassLoader
 import java.text.MessageFormat
 import java.text.ParseException
 import java.util.*
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Function
 import javax.lang.model.element.Modifier
 
@@ -151,7 +150,7 @@ class MessageEnumBuilder(
             .addStatement("String result = msg")
             .addStatement("int max = params.size()")
             .beginControlFlow("for (int i = 0; i < max; i++)")
-            .addStatement("result = replaceParamByNumber(msg, params.get(i), i)")
+            .addStatement("result = replaceParamByNumber(result, params.get(i), i)")
             .endControlFlow()
             .addStatement("return result")
             .build())

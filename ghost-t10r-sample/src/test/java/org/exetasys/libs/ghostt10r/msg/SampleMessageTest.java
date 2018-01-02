@@ -4,6 +4,8 @@ import org.junit.Test;
 
 import java.util.Locale;
 
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+
 public class SampleMessageTest {
 
     private Locale fr = Locale.forLanguageTag("fr-FR");
@@ -11,8 +13,15 @@ public class SampleMessageTest {
 
     @Test
     public void testSingleNumber() {
-
-        System.out.println(SampleMessage.SINGLE_NUMBER.format(12.3456).apply(fr));
+        String msgFr = SampleMessage.SINGLE_NUMBER.format(12.3456).apply(fr);
+        assertThat(msgFr).contains("12.346");
+        String msgEn = SampleMessage.SINGLE_NUMBER.format(12.3456).apply(en);
+        assertThat(msgEn).contains("12.35");
     }
 
+    @Test
+    public void testStringAndInteger() {
+        String msgFr = SampleMessage.STRING_AND_INTEGER.format(12, "ok").apply(fr);
+        assertThat(msgFr).contains("12").contains("'ok'");
+    }
 }
