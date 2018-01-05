@@ -14,40 +14,26 @@ import java.util.*
 import java.util.function.Function
 import javax.lang.model.element.Modifier
 
-class MessageEnumBuilder(
-    val rscDirs : List<File>,
-    val bundleName : String,
-    val keyPrefix:  String,
-    val mainLocale : Locale,
-    val locales : Set<Locale>,
+class MessageClassBuilder(
+    rscDirs : List<File>,
+    bundleName : String,
+    keyPrefix:  String,
+    mainLocale : Locale,
+    locales : Set<Locale>,
     val destDir : File,
-    val enumName : String,
-    val enumPackage : String
-) {
+    val className : String,
+    val classPackage : String)
+        : BundleLoader(rscDirs, bundleName, keyPrefix, mainLocale, locales) {
 
     companion object {
-        val LOG : Logger = LoggerFactory.getLogger(MessageEnumBuilder::class.java.name)
+        val LOG : Logger = LoggerFactory.getLogger(MessageClassBuilder::class.java.name)
     }
 
     private val keyPattern = Regex("[A-Z][A-Z1-9_]+")
-    private val classLoader = URLClassLoader(rscDirs
-        .map(File::toURI)
-        .map(URI::toURL)
-        .toTypedArray())
-
-    fun loadSpecsForLocale(specs: MsgSpecs, locale: Locale): MsgSpecs {
-        val bundle: ResourceBundle = ResourceBundle.getBundle(bundleName, locale, classLoader)
-        return bundle.keys.toList().fold(specs) {
-            specs, key -> specs.add(key, locale, bundle.getString(key))
-        }
-    }
-
-    fun loadSpecs(): MsgSpecs =
-            locales.fold(MsgSpecs(mainLocale, locales), this::loadSpecsForLocale)
 
     fun makeEnumFile(specs: MsgSpecs): JavaFile {
         val type = makeEnumContent(specs)
-        return JavaFile.builder(enumPackage, type)
+        return JavaFile.builder(classPackage, type)
             .skipJavaLangImports(true)
             .build()
     }
@@ -64,7 +50,7 @@ class MessageEnumBuilder(
 
     fun makeEnumContent(specs: MsgSpecs): TypeSpec {
 
-        val builder: TypeSpec.Builder = TypeSpec.classBuilder(enumName)
+        val builder: TypeSpec.Builder = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC)
 
         println("makeEnumContent: ${specs.keys}")
@@ -84,7 +70,7 @@ class MessageEnumBuilder(
                     TypeSpec
                         .classBuilder(keyTypeName)
                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                        .superclass(ClassName.get(enumPackage, enumName))
+                        .superclass(ClassName.get(classPackage, className))
                         .addField(FieldSpec.builder(String::class.java, "key")
                             .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
                             .initializer("\$S", key)

@@ -1,7 +1,7 @@
 package org.exetasys.libs.ghostt10r.model
 
 import org.apache.commons.collections4.ListUtils
-import org.exetasys.libs.ghostt10r.MessageEnumBuilder
+import org.exetasys.libs.ghostt10r.MessageClassBuilder
 import java.util.*
 
 class MsgSpecs(
@@ -14,7 +14,7 @@ class MsgSpecs(
         put(key, spec)
         println("BEFORE add: key=$key ||| loc=$loc ||| spec=$spec ||| specs=$this")
         if (spec.containsKey(loc)) {
-            MessageEnumBuilder.LOG.warn("Duplicate definition for: {} in locale {}", key, loc)
+            MessageClassBuilder.LOG.warn("Duplicate definition for: {} in locale {}", key, loc)
         }
         spec.put(loc, format)
         println("AFTER  add: key=$key ||| loc=$loc ||| spec=$spec ||| specs=$this")

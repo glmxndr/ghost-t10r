@@ -39,29 +39,66 @@
                 <version>${project.version}</version>
                 <executions>
                     <execution>
+                        <id>generate-sample-ghost-class</id>
                         <goals>
-                            <goal>enum-gen</goal>
+                            <goal>ghost-gen</goal>
                         </goals>
-                        <phase>generate-sources</phase>
+                        <configuration>
+                            <destDir>target/generated-sources/ghost</destDir>
+                            <classPackage>org.exetasys.libs.ghostt10r.msg</classPackage>
+                            <className>SampleMessage</className>
+
+                            <resources>
+                                <resource>src/main/resources</resource>
+                            </resources>
+                            <bundleName>sample</bundleName>
+                            <keyPrefix>sample.prefix1</keyPrefix>
+
+                            <locales>
+                                <locale>fr-FR</locale>
+                                <locale>en-UK</locale>
+                            </locales>
+                            <mainLocale>fr-FR</mainLocale>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>validate-sample-bundle</id>
+                        <goals>
+                            <goal>bundle-validator</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>src/main/resources</resource>
+                            </resources>
+                            <bundleName>sample</bundleName>
+                            <keyPrefix>sample.prefix1</keyPrefix>
+                            <locales>
+                                <locale>fr-FR</locale>
+                                <locale>en-UK</locale>
+                            </locales>
+                            <mainLocale>fr-FR</mainLocale>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>validate-haserror-bundle</id>
+                        <goals>
+                            <goal>bundle-validator</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>src/main/resources</resource>
+                            </resources>
+                            <bundleName>haserror</bundleName>
+                            <locales>
+                                <locale>fr-FR</locale>
+                                <locale>en-UK</locale>
+                            </locales>
+                            <mainLocale>fr-FR</mainLocale>
+                            <warnOnly>false</warnOnly>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <destDir>target/generated-sources/ghost</destDir>
-                    <enumName>SampleMessage</enumName>
 
-                    <resources>
-                        <resource>src/main/resources</resource>
-                    </resources>
-                    <bundleName>sample</bundleName>
-                    <enumPackage>org.exetasys.libs.ghostt10r.msg</enumPackage>
-                    <keyPrefix>sample.prefix1</keyPrefix>
-
-                    <locales>
-                        <locale>fr-FR</locale>
-                        <locale>en-UK</locale>
-                    </locales>
-                    <mainLocale>fr-FR</mainLocale>
-                </configuration>
             </plugin>
         </plugins>
     </build>

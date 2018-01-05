@@ -8,6 +8,31 @@
     <version>0.0.1</version>
     <name>ghost-t10r</name>
 
+    <url>https://github.com/glmxndr/ghost-t10r</url>
+
+    <scm>
+        <connection>scm:git:git://github.com/glmxndr/ghost-t10r.git</connection>
+        <developerConnection>scm:git:ssh://github.com:glmxndr/ghost-t10r.git</developerConnection>
+        <url>http://github.com/glmxndr/ghost-t10r/tree/master</url>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>Guillaume Andrieu</name>
+            <email>ggr.andrieu@gmail.com</email>
+            <organization>glmxndr</organization>
+            <organizationUrl>http://github.com/glmxndr</organizationUrl>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <modules>
         <module>ghost-t10r-core</module>
         <module>ghost-t10r-maven-plugin</module>
@@ -22,6 +47,48 @@
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
 
-    <url>http://maven.apache.org</url>
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

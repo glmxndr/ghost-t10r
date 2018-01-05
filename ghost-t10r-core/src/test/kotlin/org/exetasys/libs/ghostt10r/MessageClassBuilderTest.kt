@@ -6,11 +6,11 @@ import java.io.File
 import java.util.*
 import kotlin.collections.HashSet
 
-class MessageEnumBuilderTest {
+class MessageClassBuilderTest {
 
     @org.junit.Test
     fun makeEnumContent() {
-        val builder: MessageEnumBuilder = MessageEnumBuilder(
+        val builder: MessageClassBuilder = MessageClassBuilder(
             Arrays.asList(File("src/test/resources")),
             "test-ghost-t10r",
             "",

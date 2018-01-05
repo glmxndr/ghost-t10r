@@ -8,7 +8,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import org.exetasys.libs.ghostt10r.MessageEnumBuilder;
+import org.exetasys.libs.ghostt10r.MessageClassBuilder;
 
 import java.io.File;
 import java.util.Arrays;
@@ -19,9 +19,9 @@ import java.util.stream.Collectors;
 
 
 @Mojo(
-    name = "enum-gen",
+    name = "ghost-gen",
     defaultPhase = LifecyclePhase.GENERATE_SOURCES)
-public class EnumGeneratorMojo
+public class GhostGeneratorMojo
         extends AbstractMojo {
 
     @Component(role = MavenProject.class)
@@ -33,26 +33,6 @@ public class EnumGeneratorMojo
             required = true,
             property = "ghost-t10r.resources")
     private String[] resourcesPaths;
-
-    @Parameter(
-        name = "destDirPath",
-        alias = "destDir",
-        defaultValue = "target/generated-sources/ghost-t10r",
-        required = false,
-        property = "ghost-t10r.destDir")
-    private String destDirPath;
-
-    @Parameter(
-        name = "enumName",
-        required = true,
-        property = "ghost-t10r.enumName")
-    private String enumName;
-
-    @Parameter(
-        name = "enumPackage",
-        required = true,
-        property = "ghost-t10r.enumPackage")
-    private String enumPackage;
 
     @Parameter(
         name = "bundleName",
@@ -80,6 +60,26 @@ public class EnumGeneratorMojo
         property = "ghost-t10r.locales")
     private String[] localesDescs;
 
+    @Parameter(
+            name = "destDirPath",
+            alias = "destDir",
+            defaultValue = "target/generated-sources/ghost-t10r",
+            required = false,
+            property = "ghost-t10r.destDir")
+    private String destDirPath;
+
+    @Parameter(
+            name = "className",
+            required = true,
+            property = "ghost-t10r.enumName")
+    private String className;
+
+    @Parameter(
+            name = "classPackage",
+            required = true,
+            property = "ghost-t10r.classPackage")
+    private String classPackage;
+
     public void execute()
             throws MojoExecutionException {
         Log log = getLog();
@@ -105,15 +105,15 @@ public class EnumGeneratorMojo
 
         String prefix = keyPrefix.endsWith(".") ? keyPrefix : keyPrefix + ".";
 
-        MessageEnumBuilder builder = new MessageEnumBuilder(
+        MessageClassBuilder builder = new MessageClassBuilder(
                 resourcesDirs,
                 bundleName,
                 prefix,
                 mainLocale,
                 locales,
                 destDir,
-                enumName,
-                enumPackage);
+                className,
+                classPackage);
         builder.writeEnumFile(builder.loadSpecs());
     }
 }
