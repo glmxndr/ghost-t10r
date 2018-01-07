@@ -17,15 +17,14 @@ class MsgSpec (
      */
     fun validate(): List<MsgSpecError> {
         return Stream.of(
-                missingParamsInFormats(mainFormat()),
-                unknownParamsInFormats(mainFormat()),
-                missingFormatsInLocale())
-                .flatMap { errs -> errs.stream() }
-                .collect(Collectors.toList<MsgSpecError>())
+            missingParamsInFormats(mainFormat()),
+            unknownParamsInFormats(mainFormat()),
+            missingFormatsInLocale())
+            .flatMap { errs -> errs.stream() }
+            .collect(Collectors.toList<MsgSpecError>())
     }
 
     fun mainFormat(): MsgFormat? {
-        println("mainFormat: mainLocale=$mainLocale")
         return get(mainLocale)?.let { MsgFormat(it) }
     }
 
@@ -45,8 +44,8 @@ class MsgSpec (
 
     private fun missingFormatsInLocale(): List<MsgSpecError> {
         return locales
-                .filter { !containsKey(it) }
-                .map { MsgSpecError(key, MsgSpecErrorType.MISSING_KEY_FOR_LOCALE, key, it) }
+            .filter { !containsKey(it) }
+            .map { MsgSpecError(key, MsgSpecErrorType.MISSING_KEY_FOR_LOCALE, key, it) }
     }
 
     private fun missingFrom (main: Set<String>, toTest: Set<String>): Set<String> {

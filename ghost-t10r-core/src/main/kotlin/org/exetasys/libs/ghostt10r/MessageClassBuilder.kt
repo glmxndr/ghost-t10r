@@ -53,8 +53,6 @@ class MessageClassBuilder(
         val builder: TypeSpec.Builder = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC)
 
-        println("makeEnumContent: ${specs.keys}")
-
         specs.entries
             .filter { it.key.startsWith(keyPrefix) }
             .filter { it.key.replaceFirst(keyPrefix, "").matches(keyPattern) }

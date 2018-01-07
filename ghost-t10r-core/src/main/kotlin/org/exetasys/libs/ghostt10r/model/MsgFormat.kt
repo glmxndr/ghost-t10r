@@ -5,7 +5,6 @@ import java.util.*
 class MsgFormat (val format: String) {
     val params: Set<String> = run {
         val params = TreeSet<String>()
-        println(format)
         Regex("\\{[a-zA-Z-]+?[},]")
             .findAll(format)
             .toList()

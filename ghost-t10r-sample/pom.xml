@@ -94,7 +94,7 @@
                                 <locale>en-UK</locale>
                             </locales>
                             <mainLocale>fr-FR</mainLocale>
-                            <warnOnly>false</warnOnly>
+                            <warnOnly>true</warnOnly>
                         </configuration>
                     </execution>
                 </executions>

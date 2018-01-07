@@ -12,12 +12,10 @@ class MsgSpecs(
     fun add(key: String, loc: Locale, format: String): MsgSpecs {
         val spec : MsgSpec = get(key) ?: MsgSpec(key, mainLocale, locales)
         put(key, spec)
-        println("BEFORE add: key=$key ||| loc=$loc ||| spec=$spec ||| specs=$this")
         if (spec.containsKey(loc)) {
             MessageClassBuilder.LOG.warn("Duplicate definition for: {} in locale {}", key, loc)
         }
         spec.put(loc, format)
-        println("AFTER  add: key=$key ||| loc=$loc ||| spec=$spec ||| specs=$this")
         return this
     }
 

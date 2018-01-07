@@ -21,7 +21,10 @@ public class SampleMessageTest {
 
     @Test
     public void testStringAndInteger() {
-        String msgFr = SampleMessage.STRING_AND_INTEGER.format(12, "ok").apply(fr);
-        assertThat(msgFr).contains("12").contains("'ok'");
+        String msgFr = SampleMessage.STRING_AND_INTEGER.format(12, "okFr").apply(fr);
+        assertThat(msgFr).contains("12").contains("'okFr'");
+
+        String msgEn = SampleMessage.STRING_AND_INTEGER.format(13, "okEn").apply(en);
+        assertThat(msgEn).contains("13").contains("'okEn'");
     }
 }

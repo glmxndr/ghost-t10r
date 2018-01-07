@@ -1,6 +1,7 @@
 package org.exetasys.libs.ghostt10r
 
 import org.exetasys.libs.ghostt10r.model.MsgSpecs
+import org.exetasys.libs.ghostt10r.utils.UTF8Control
 import java.io.File
 import java.net.URI
 import java.net.URLClassLoader
@@ -20,7 +21,7 @@ open class BundleLoader(
             .toTypedArray())
 
     fun loadSpecsForLocale(specs: MsgSpecs, locale: Locale): MsgSpecs {
-        val bundle: ResourceBundle = ResourceBundle.getBundle(bundleName, locale, classLoader)
+        val bundle: ResourceBundle = ResourceBundle.getBundle(bundleName, locale, classLoader, UTF8Control())
         return bundle.keys.toList().fold(specs) {
             specs, key -> specs.add(key, locale, bundle.getString(key))
         }
