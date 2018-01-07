@@ -31,6 +31,8 @@ class MessageClassBuilder(
 
     private val keyPattern = Regex("[A-Z][A-Z1-9_]+")
 
+    private val localeEvaluatorInterfaceName = "LocaleEvaluator"
+
     fun makeEnumFile(specs: MsgSpecs): JavaFile {
         val type = makeEnumContent(specs)
         return JavaFile.builder(classPackage, type)
@@ -56,40 +58,7 @@ class MessageClassBuilder(
         specs.entries
             .filter { it.key.startsWith(keyPrefix) }
             .filter { it.key.replaceFirst(keyPrefix, "").matches(keyPattern) }
-            .forEach { (key, spec) ->
-                val formatMethodBuilder = makeFormatMethod(key, spec)
-                val parseMethodBuilder = makeParseMethod(key, spec)
-                val keyName = key.replaceFirst(keyPrefix, "")
-                val keyTypeName = camelCase(keyName) + "Type"
-
-                val paramsStr = paramsStrings(spec)
-
-                builder.addType(
-                    TypeSpec
-                        .classBuilder(keyTypeName)
-                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                        .superclass(ClassName.get(classPackage, className))
-                        .addField(FieldSpec.builder(String::class.java, "key")
-                            .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
-                            .initializer("\$S", key)
-                            .build())
-                        .addField(FieldSpec.builder(ParameterizedTypeName.get(
-                                    List::class.java,
-                                    String::class.javaObjectType),
-                                "params")
-                            .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
-                            .initializer("\$T.asList(\$L)", Arrays::class.java, paramsStr)
-                            .build())
-                        .addMethod(formatMethodBuilder.build())
-                        .addMethod(parseMethodBuilder.build())
-                        .build())
-
-                builder.addField(FieldSpec
-                    .builder(ClassName.get("", keyTypeName), keyName)
-                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                    .initializer("new \$L()", keyTypeName)
-                    .build())
-            }
+            .forEach { (key, spec) -> createKeyType(key, spec, builder) }
 
         val bundlesTypeName = ParameterizedTypeName.get(
                 Map::class.java,
@@ -141,41 +110,144 @@ class MessageClassBuilder(
 
         builder.addMethod(makeBaseParseMethod().build())
 
+        builder.addType(TypeSpec
+            .interfaceBuilder(localeEvaluatorInterfaceName)
+            .addMethod(MethodSpec
+                .methodBuilder("withLocale")
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .returns(String::class.java)
+                .addParameter(Locale::class.java, "locale")
+                .build())
+            .build())
+
         return builder.build()
     }
 
+    private fun createKeyType(key: String, spec: MsgSpec, builder: TypeSpec.Builder) {
+        val keyName = key.replaceFirst(keyPrefix, "")
+        val keyTypeName = createKeyTypeName(keyName)
+
+        val formatMethodBuilder = makeFormatMethod(keyName, spec)
+        val parseMethodBuilder = makeParseMethod(key, spec)
+
+        val paramsStr = paramsStrings(spec)
+
+        spec.mainParams()
+            .windowed(size = 2, partialWindows = true)
+            .forEach { ps ->
+                val next : String =
+                    if (ps.size == 2) { paramInterfaceName(keyName, ps.get(1)) }
+                    else { localeEvaluatorInterfaceName }
+                builder.addType(createInterfaceFromTo(keyName, ps.get(0), next))
+            }
+
+        builder.addType(
+            TypeSpec
+                .classBuilder(keyTypeName)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .superclass(ClassName.get(classPackage, className))
+                .addField(FieldSpec.builder(String::class.java, "key")
+                    .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+                    .initializer("\$S", key)
+                    .build())
+                .addField(FieldSpec.builder(ParameterizedTypeName.get(
+                    List::class.java,
+                    String::class.javaObjectType),
+                    "params")
+                    .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+                    .initializer("\$T.asList(\$L)", Arrays::class.java, paramsStr)
+                    .build())
+                .addMethod(formatMethodBuilder.build())
+                .addMethod(parseMethodBuilder.build())
+                .build())
+
+        builder.addField(FieldSpec
+            .builder(ClassName.get("", keyTypeName), keyName)
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+            .initializer("new \$L()", keyTypeName)
+            .build())
+    }
+
+    private fun createKeyTypeName(keyName: String) = camelCase(keyName) + "Type"
+
+    private fun createInterfaceFromTo(
+            key : String,
+            param1: String,
+            nextInterface: String): TypeSpec {
+        return TypeSpec
+            .interfaceBuilder(paramInterfaceName(key, param1))
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .addMethod(MethodSpec
+                .methodBuilder("with${param1.capitalize()}")
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .returns(ClassName.get("", nextInterface))
+                .addParameter(Object::class.java, param1)
+                .build())
+            .build()
+    }
+
+    private fun paramInterfaceName(key: String, param1: String) =
+            "${camelCase(key)}${param1.capitalize()}Setter"
+
     private fun makeFormatMethod(key: String, spec: MsgSpec): MethodSpec.Builder {
-        val formatMethodBuilder = MethodSpec.methodBuilder("format")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(ParameterizedTypeName.get(Function::class.java, Locale::class.java, String::class.java))
+        val keyTypeName = createKeyTypeName(key)
+        val params = spec.mainParams()
+        val paramsCount = params.size
+        val paramsList = params.fold(
+            "",
+            { acc, param -> "$acc, $param" })
 
-        spec.mainFormat()?.let { mf ->
-            mf.params.forEach { param -> formatMethodBuilder.addParameter(Object::class.java, param) }
-        }
+        val returnTypes: List<String> = params.toList().drop(1)
+            .map { paramInterfaceName(key, it) }
+            .plus(localeEvaluatorInterfaceName)
 
-        val paramsCount = spec.mainFormat()?.params?.size ?: 0
+        val methodNames : List<Pair<String, String>> = ArrayList<Pair<String,String>>()
+            .plus(params.toList().map { Pair("with${it.capitalize()}", it) })
 
-        val params = spec.mainFormat()?.params?.fold("") { acc, param -> "$acc, $param" } ?: ""
+        val methodSpecs : List<Triple<String, String, String>> =
+            returnTypes
+                .zip(methodNames)
+                .map { Triple(it.first, it.second.first, it.second.second) }
 
-        val formatBlock: CodeBlock.Builder = CodeBlock.builder()
-            .add("return locale -> {\n")
+        val innerMostBlock: CodeBlock.Builder = CodeBlock.builder()
+            .add("public String withLocale(Locale locale) {\n")
             .indent()
-            .addStatement("String msg = BUNDLES.get(locale).getString(this.key)")
+            .addStatement("String msg = BUNDLES.get(locale).getString($keyTypeName.this.key)")
             .addStatement("msg = replaceParamsByNumbers(msg, params)")
-
-        if (paramsCount == 0) {
-            formatBlock.addStatement("return msg")
-        }
-        else {
-            formatBlock.addStatement("return \$T.format(msg$params)", MessageFormat::class.java)
-        }
-
-        formatBlock
+        if (paramsCount == 0) { innerMostBlock
+            .addStatement("return msg") }
+        else { innerMostBlock
+            .addStatement("return \$T.format(msg$paramsList)", MessageFormat::class.java) }
+        innerMostBlock
             .unindent()
-            .add("};\n")
+            .add("}\n")
 
-        formatMethodBuilder.addCode(formatBlock.build())
-        return formatMethodBuilder
+        val innerBlock = methodSpecs.foldRight(innerMostBlock.build())
+            { (retType, methName, argName), acc ->
+                CodeBlock.builder()
+                    .add("public $retType $methName(${if(argName.isEmpty()) { "" } else { "Object $argName" }}) {\n")
+                    .indent()
+                    .add("return new $retType() {\n")
+                    .indent()
+                    .add(acc)
+                    .unindent()
+                    .add("};\n")
+                    .unindent()
+                    .add("}\n")
+                    .build()
+            }
+
+        val firstInnerName =
+            if (params.isEmpty()) { localeEvaluatorInterfaceName }
+            else { paramInterfaceName(key, params.first()) }
+        val firstInnerType = ClassName.get("", firstInnerName)
+
+        return MethodSpec.methodBuilder("format")
+            .addModifiers(Modifier.PUBLIC)
+            .returns(firstInnerType)
+            .addCode("return new $firstInnerName() {\n")
+            .addCode(innerBlock)
+            .addCode("};\n")
     }
 
     private fun makeBaseParseMethod(): MethodSpec.Builder {
